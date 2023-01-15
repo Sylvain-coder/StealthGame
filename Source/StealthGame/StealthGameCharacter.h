@@ -30,6 +30,16 @@ public:
 	float BaseLookUpRate;
 
 protected:
+	TArray<AActor*> Inventory;
+
+	UPROPERTY(EditDefaultsOnly, Category = "StealthGame Character");
+	float InteractionDistance;
+
+	/** Fonction appelée pour interagir avec un objet */
+	void Interact();
+
+	/** Fonction qui permet de tracer le rayon pour l'interaction */
+	bool PerformLineTrace(FHitResult& HitResultParam, FVector StartParam, FVector EndParam, bool DrawDebug = false);
 
 	/** Called for forwards/backward input */
 	void MoveForward(float Value);
@@ -55,6 +65,12 @@ protected:
 	// End of APawn interface
 
 public:
+
+	void AddItemToInventory(AActor* Item);
+
+	UFUNCTION(BlueprintCallable)
+	TArray<AActor*> GetInventory() const { return Inventory; }
+
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/

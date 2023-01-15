@@ -7,6 +7,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "DrawDebugHelpers.h"
+#include "Interfaces/InteractableInterface.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AStealthGameCharacter
@@ -44,6 +46,8 @@ AStealthGameCharacter::AStealthGameCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
+	
+	InteractionDistance = 500.0f;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -55,6 +59,8 @@ void AStealthGameCharacter::SetupPlayerInputComponent(class UInputComponent* Pla
 	check(PlayerInputComponent);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+
+	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &AStealthGameCharacter::Interact);
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &AStealthGameCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AStealthGameCharacter::MoveRight);
@@ -79,6 +85,48 @@ void AStealthGameCharacter::LookUpAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
+}
+
+// Fonction qui va être appelée lors de l'interaction avec les objets
+void AStealthGameCharacter::Interact()
+{
+	FVector Start = GetFollowCamera()->GetComponentLocation();	// point de départ de la "line trace" d'interaction
+	FVector End = Start + GetFollowCamera()->GetForwardVector() * InteractionDistance;	// point d'arrivée de la "line trace" d'interaction
+	FHitResult HitResult;	// premier point d'intersection entre le rayon et l'objet
+
+	if (PerformLineTrace(HitResult, Start, End, true))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LA LINE TRACE A TRAVERSE QUELQUE CHOSE"))	// permet d'afficher un message lors de l'intersection entre le rayon
+																					// et un objet dans le Message log
+		if (IInteractableInterface* Interface = Cast<IInteractableInterface>(HitResult.GetActor())) // on récupère l'objet auquel appartient le point
+																								   // d'intersection avec le rayon tracé
+		{
+			Interface->Interact(this);
+		}
+	}	
+}
+
+bool AStealthGameCharacter::PerformLineTrace(FHitResult& HitResultParam, FVector StartParam, FVector EndParam, bool DrawDebug)
+{
+	if (DrawDebug)	// si ce paramètre est mis à true, alors on trace la ligne pour le débogage
+	{
+		DrawDebugLine(GetWorld(), StartParam, EndParam, FColor::Red, false, 2.0f, 0, 2.0f);		// trace une ligne (pour le débogage) symbolisant le rayon
+	}
+
+	FCollisionQueryParams Params;	// paramètres additionnels utilisés par la trace
+	Params.AddIgnoredActor(this);	// on ignore le personnage (joueur)
+
+	return GetWorld()->LineTraceSingleByChannel(HitResultParam, StartParam, EndParam, ECollisionChannel::ECC_WorldStatic, Params);
+}
+
+void AStealthGameCharacter::AddItemToInventory(AActor* Item)
+{
+	if (Item)
+	{
+		Inventory.Add(Item);
+
+		UE_LOG(LogTemp, Warning, TEXT("L'ITEM A ETE AJOUTE A L'INVENTAIRE"))	// permet d'afficher un message indiquant que l'item a été mis dans l'inventaire
+	}
 }
 
 void AStealthGameCharacter::MoveForward(float Value)
